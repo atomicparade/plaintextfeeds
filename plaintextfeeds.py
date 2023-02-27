@@ -21,16 +21,32 @@ class Entry:
     title: str
     pub_date: datetime
 
+    def get_info(self) -> str:
+        return (
+            f"  Entry: {self.title}\n"
+            f"   Link: {self.url}\n"
+            f"   Date: {self.pub_date.strftime('%d %B %Y at %H:%M:%S')}"
+        )
+
 
 @dataclass
 class Feed:
     url: str
     title: Optional[str] = None
     entries: list[Entry] = field(default_factory=list)
+    retrieval_failed: bool = False
     newest_retrieved_date: Optional[
         datetime
     ] = None  # Published date of the newest retrieved entry
     is_enabled: bool = False
+
+    def get_info(self) -> str:
+        retrieval_failed_msg = " (retrieval failed)" if self.retrieval_failed else ""
+
+        if self.title:
+            return f"Feed: {self.title}{retrieval_failed_msg}\n" f" URL: {self.url}"
+
+        return f"Feed: {self.url}"
 
 
 Url = str
@@ -94,6 +110,10 @@ def get_feed_data(data_file: str, date_format: str, urls: list[Url]) -> dict[Url
 
 def update_feed(feed: Feed) -> None:
     data = feedparser.parse(feed.url)
+
+    if "bozo" in data and data["bozo"]:
+        feed.retrieval_failed = True
+        return
 
     if "title" in data["feed"]:
         feed.title = data["feed"]["title"]
@@ -161,16 +181,10 @@ def main() -> None:
             feeds_without_new_articles.append(feed)
             continue
 
-        if feed.title:
-            print(f"Feed: {feed.title}")
-            print(f" URL: {feed.url}")
-        else:
-            print(f"Feed: {feed.url}")
+        print(feed.get_info())
 
         for entry in feed.entries:
-            print(f"  Entry: {entry.title}")
-            print(f"   Link: {entry.url}")
-            print(f"   Date: {entry.pub_date.strftime('%d %B %Y at %H:%M:%S')}")
+            print(entry.get_info())
 
         print()
 
@@ -181,11 +195,7 @@ def main() -> None:
             if not feed.is_enabled:
                 continue
 
-            if feed.title:
-                print(f"Feed: {feed.title}")
-                print(f" URL: {feed.url}")
-            else:
-                print(f"Feed: {feed.url}")
+            print(feed.get_info())
 
 
 if __name__ == "__main__":
